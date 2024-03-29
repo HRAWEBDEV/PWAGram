@@ -1,22 +1,24 @@
-const staticCacheName = 'static-cache-1';
-const dynamicCacheName = 'dynamic-cache';
+const staticCacheName = 'static-cache-v1';
+const dynamicCacheName = 'dynamic-cache-v1';
+//
+const staticFileNames = [
+ '/',
+ '/src/js/material.min.js',
+ '/src/js/app.js',
+ '/src/js/feed.js',
+ '/src/css/app.css',
+ '/src/css/feed.css',
+ '/manifest.json',
+ '/src/images/main-image.jpg',
+ 'https://cdnjs.cloudflare.com/ajax/libs/material-design-lite/1.3.0/material.indigo-pink.min.css',
+ 'https://fonts.googleapis.com/icon?family=Material+Icons',
+ 'https://fonts.googleapis.com/css?family=Roboto:400,700',
+];
 // activate install event
 this.addEventListener('install', (e) => {
  return e.waitUntil(
   caches.open(staticCacheName).then((cache) => {
-   cache.addAll([
-    '/',
-    '/src/js/material.min.js',
-    '/src/js/app.js',
-    '/src/js/feed.js',
-    '/src/css/app.css',
-    '/src/css/feed.css',
-    '/manifest.json',
-    '/src/images/main-image.jpg',
-    'https://cdnjs.cloudflare.com/ajax/libs/material-design-lite/1.3.0/material.indigo-pink.min.css',
-    'https://fonts.googleapis.com/icon?family=Material+Icons',
-    'https://fonts.googleapis.com/css?family=Roboto:400,700',
-   ]);
+   cache.addAll(staticFileNames);
   })
  );
 });
@@ -39,20 +41,24 @@ this.addEventListener('activate', (e) => {
 
 // intercept fetch events
 this.addEventListener('fetch', (e) => {
- return e.respondWith(
-  caches
-   .match(e.request)
-   .then((result) => {
+ const isStaticFile = staticFileNames.includes(e.request.url);
+ //  cache only strategy for static files
+ if (isStaticFile) {
+  e.waitUntil(
+   caches.match(e.request).then((result) => {
     if (result) return result;
-    // we can use dynamic caching here
-    // now everything is cached which is not good
+    return fetch(e.request);
+   })
+  );
+ } else {
+  // dynamic caching for other requests
+  e.waitUntil(
+   caches.open(dynamicCacheName).then((cache) => {
     return fetch(e.request).then((result) => {
-     return caches.open(dynamicCacheName).then((cache) => {
-      cache.put(e.request, result.clone());
-      return result;
-     });
+     cache.put(e.request, result.clone());
+     return result;
     });
    })
-   .catch(() => {})
- );
+  );
+ }
 });
